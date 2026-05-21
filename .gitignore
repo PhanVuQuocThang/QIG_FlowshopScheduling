@@ -1,21 +1,75 @@
-# Virtual environment
-venv/
-.env/
-
-# Byte-compiled / cache files
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 
-# VS Code settings
-.vscode/
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# Logs
-*.log
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Ignore isolated environment
-isolated/
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+runs/
+
+# Results / outputs
+results/
+outputs/
+figures/
+plots/
+reports/generated/
+*.csv.tmp
+
+# Checkpoints / models
+checkpoints/
+models/checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.pkl
+*.joblib
+
+# Temporary files
+tmp/
+temp/
+.cache/
+*.tmp
+
+# datasets/bounds/*.csv
+
+# Keep folder structure
+!datasets/
+!datasets/bounds/
+!datasets/.gitkeep
+!datasets/bounds/.gitkeep
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage / testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment variables
+.env
+.env.*
