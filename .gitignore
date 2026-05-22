@@ -74,3 +74,4 @@ htmlcov/
 .env
 .env.*
 IG for PFSP/
+isolated/
