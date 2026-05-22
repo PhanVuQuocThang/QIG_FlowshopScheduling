@@ -73,5 +73,9 @@ htmlcov/
 # Environment variables
 .env
 .env.*
+
+# To be ignored
 IG for PFSP/
 isolated/
+test*
+temp*
