@@ -2,20 +2,28 @@
 solution.py
 ---
 Defines the Solution dataclass and makespan calculation functions.
+
+insert_best uses Taillard (1990) acceleration via Cython (evaluations.pyx) when available,
+falling back to pure-Python O(n^2 m) otherwise.
 """
 import numpy as np
 from dataclasses import dataclass
 
 @dataclass
 class Solution:
-    perm: list        # job permutation
+    perm: list        # job permutation (0-based)
     cmax: int = 0
+
+# Try to import Cython accelerated evaluations
+try:
+    from evaluations import taillard_acceleration as _taillard_accel
+    _USE_CYTHON = True
+except ImportError:
+    _USE_CYTHON = False
 
 def _makespan_np(p_np, perm):
     """Compute makespan for a (possibly partial) permutation.
-    
-    Allocates completion-time matrix sized (m, len(perm)) — not (m, n_total) —
-    so this works correctly for both full and partial sequences (used in NEH, insertion).
+    Uses len(perm) for matrix size so partial sequences work correctly.
     """
     if not perm:
         return 0
@@ -39,14 +47,8 @@ def makespan(p, perm):
     return _makespan_np(np.asarray(p, dtype=np.int64), perm)
 
 def _idle_time_np(p_np, perm):
-    """Total idle time across all machines for a given (possibly partial) permutation.
-    
-    Tie-breaking criterion per Fernandez-Viagas & Framinan (2014):
-    prefer insertion positions with lower total idle time.
-
-    For each machine i:
-        idle_i = last_completion_on_machine_i - sum_of_proc_times_on_machine_i
-    Total idle = sum over all machines.
+    """Total idle time across all machines (tie-breaking criterion).
+    For each machine i: idle_i = last_completion_i - sum_proc_i.
     """
     if not perm:
         return 0
@@ -69,11 +71,26 @@ def _idle_time_np(p_np, perm):
         total_idle += int(c[i, -1]) - machine_proc_sum
     return total_idle
 
-
 def insert_best(p_np, perm, job, tie_breaking=False):
-    """Insert job into perm at the position that minimises makespan.
-    On ties, if tie_breaking=True, prefer the position with minimum total idle time.
+    """Insert job into perm at the position minimising makespan.
+    Uses Taillard acceleration (Cython) when available — O(nm) instead of O(n^2 m).
+    Falls back to pure Python otherwise.
+    On ties, if tie_breaking=True, prefer minimum idle time (Fernandez-Viagas & Framinan 2014).
     """
+    if _USE_CYTHON and len(perm) > 0:
+        # Cython expects: processing_times[job-1, machine-1] -> shape (n_jobs, n_machines)
+        # p_np is (m, n_total), so transpose to (n_total, m) and cast to int32
+        pt = p_np.T.astype(np.int32)
+        seq = np.array([j + 1 for j in perm], dtype=np.int32)  # 0-based -> 1-based
+        job_1based = job + 1
+        use_tb = 1 if tie_breaking else 0
+
+        best_pos_1based, best_cmax, _, _ = _taillard_accel(seq, pt, job_1based, p_np.shape[0], use_tb)
+        insert_idx = best_pos_1based - 1  # 1-based -> 0-based
+        new_perm = perm[:insert_idx] + [job] + perm[insert_idx:]
+        return new_perm, int(best_cmax)
+
+    # Pure Python fallback (empty perm, or no Cython)
     best_cmax, best_pos, best_idle = None, 0, None
     for pos in range(len(perm) + 1):
         candidate = perm[:pos] + [job] + perm[pos:]
@@ -82,7 +99,6 @@ def insert_best(p_np, perm, job, tie_breaking=False):
             best_cmax, best_pos = cmax, pos
             best_idle = _idle_time_np(p_np, candidate) if tie_breaking else None
         elif tie_breaking and cmax == best_cmax:
-            # Break ties by minimum idle time (Fernandez-Viagas & Framinan 2014)
             idle = _idle_time_np(p_np, candidate)
             if idle < best_idle:
                 best_idle = idle
