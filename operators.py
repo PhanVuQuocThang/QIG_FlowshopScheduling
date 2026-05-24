@@ -1,3 +1,11 @@
+"""
+operators.py
+---
+Contains the core operators for Iterated Greedy:
+- perturbation: destruction-construction with optional local search on partial solution
+- local_search: applies a local search method to improve a solution
+- insertion_neighborhood: local search by removing each job and reinserting in best position
+"""
 import random
 import copy
 from solution import _makespan_np, insert_best, Solution
@@ -26,7 +34,7 @@ def perturbation(p_np, solution: Solution, num_jobs_remove: int,
 
     # Construction
     for job in removed_jobs:
-        solution.perm, solution.cmax = insert_best(p_np, solution.perm, job)
+        solution.perm, solution.cmax = insert_best(p_np, solution.perm, job, tie_breaking=tie_breaking)
 
 def local_search(p_np, solution: Solution, method='insertion_neighborhood',
                  ref_best: Solution = None, until_no_improvement=True,
@@ -74,7 +82,7 @@ def insertion_neighborhood(p_np, solution: Solution, ref_best: Solution = None,
         for job in not_tested:
             temp_perm = solution.perm.copy()
             temp_perm.remove(job)
-            temp_perm, temp_cmax = insert_best(p_np, temp_perm, job)
+            temp_perm, temp_cmax = insert_best(p_np, temp_perm, job, tie_breaking=tie_breaking)
             solution.perm = temp_perm
             solution.cmax = temp_cmax
 

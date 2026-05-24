@@ -348,19 +348,97 @@ def _ints_from_text(text: str) -> List[int]:
 
 def parse_taillard_file(filepath: str | Path, name: Optional[str] = None) -> PFSPInstance:
     """
-    Parse datasets/taillard_instances/ta001 style.
+    Parse Taillard instance file.
 
-    Format:
+    Supports two formats:
+
+    Format A - Taillard machine-major:
         n m seed UB LB
         m rows x n processing times
+
+    Format B - ta001 / ta002 job-pair format:
+        n m
+        n rows, one row per job:
+            machine_id processing_time machine_id processing_time ...
+
+    Output internal matrix:
+        p[machine][job]
     """
     filepath = Path(filepath)
-    nums = _ints_from_text(filepath.read_text(encoding="utf-8", errors="replace"))
+    lines = [
+        ln.strip()
+        for ln in filepath.read_text(encoding="utf-8", errors="replace").splitlines()
+        if ln.strip()
+    ]
+
+    if not lines:
+        raise ValueError(f"{filepath}: empty file.")
+
+    first = [int(x) for x in re.findall(r"-?\d+", lines[0])]
+    if len(first) < 2:
+        raise ValueError(f"{filepath}: first line must contain n and m.")
+
+    # ------------------------------------------------------------------
+    # Format B: ta001 style
+    # Header: n m
+    # Then n rows, each row has 2*m integers: machine_id processing_time ...
+    # ------------------------------------------------------------------
+    if len(first) == 2:
+        n, m = first
+
+        if len(lines) - 1 < n:
+            raise ValueError(f"{filepath}: expected {n} job rows, got {len(lines) - 1}.")
+
+        p = [[0 for _ in range(n)] for _ in range(m)]
+
+        for job in range(n):
+            nums = [int(x) for x in re.findall(r"-?\d+", lines[1 + job])]
+
+            if len(nums) != 2 * m:
+                raise ValueError(
+                    f"{filepath}: job row {job} must contain {2*m} integers "
+                    f"({m} machine/time pairs), got {len(nums)}."
+                )
+
+            seen = set()
+            for k in range(m):
+                machine = nums[2 * k]
+                proc = nums[2 * k + 1]
+
+                if not (0 <= machine < m):
+                    raise ValueError(
+                        f"{filepath}: invalid machine id {machine} in job row {job}."
+                    )
+                if machine in seen:
+                    raise ValueError(
+                        f"{filepath}: duplicated machine id {machine} in job row {job}."
+                    )
+
+                seen.add(machine)
+                p[machine][job] = proc
+
+        return PFSPInstance(
+            name=name or filepath.stem,
+            n=n,
+            m=m,
+            p=p,
+            source="taillard",
+            path=str(filepath),
+            meta={"raw_format": "taillard_job_pair"},
+        )
+
+    # ------------------------------------------------------------------
+    # Format A: machine-major Taillard raw
+    # Header: n m seed UB LB
+    # Then m rows x n processing times
+    # ------------------------------------------------------------------
+    nums = _ints_from_text("\n".join(lines))
     if len(nums) < 5:
         raise ValueError(f"{filepath}: not enough integers for Taillard header.")
 
     n, m, seed, ub, lb = nums[:5]
     need = 5 + n * m
+
     if n <= 0 or m <= 0 or len(nums) < need:
         raise ValueError(f"{filepath}: incomplete Taillard instance.")
 
@@ -660,10 +738,7 @@ def load_project_datasets(root: str | Path = "datasets") -> Dict[str, BenchmarkS
         "all": all_suite,
     }
 
-
-# =============================================================================
 # Result helpers for benchmark runs
-# =============================================================================
 
 @dataclass
 class RunResult:
@@ -739,10 +814,7 @@ def benchmark_algorithm(
             )
     return results
 
-
-# =============================================================================
 # CLI
-# =============================================================================
 
 def _cli() -> None:
     parser = argparse.ArgumentParser(description="PFSP benchmark dataset loader")

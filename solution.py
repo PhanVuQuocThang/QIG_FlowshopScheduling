@@ -1,3 +1,8 @@
+"""
+solution.py
+---
+Defines the Solution dataclass and makespan calculation functions.
+"""
 import numpy as np
 from dataclasses import dataclass, field
 
@@ -26,8 +31,7 @@ def makespan(p, perm):
     """Public-facing: accepts list-of-lists or np.array, p[machine][job]."""
     return _makespan_np(np.asarray(p, dtype=np.int64), perm)
 
-def insert_best(p_np, perm, job):
-    """Return new perm with job inserted at its best position, and resulting cmax."""
+def insert_best(p_np, perm, job, tie_breaking=False):
     best_cmax, best_pos = None, 0
     for pos in range(len(perm) + 1):
         cmax = _makespan_np(p_np, perm[:pos] + [job] + perm[pos:])
