@@ -1,3 +1,10 @@
+"""
+initialization.py
+---
+Contains initialization functions for our Iterated Greedy implementation, including:
+- make_solver: factory function to create a solver compatible with our benchmark framework, with optional strategy
+- neh: NEH heuristic for generating an initial solution permutation
+"""
 import numpy as np
 from solution import Solution, _makespan_np
 

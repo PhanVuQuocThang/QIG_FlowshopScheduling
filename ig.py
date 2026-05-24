@@ -1,3 +1,16 @@
+"""
+ig.py
+---
+Iterated Greedy algorithm implementation for flow shop scheduling.
+This module defines the IteratedGreedyAlgorithm class, which encapsulates the main loop and state of the algorithm.
+It uses the operators and strategies defined in separate modules for modularity and clarity.
+The main components are:
+- IteratedGreedyAlgorithm: main class with execute() method to run the algorithm
+- calc_temp(): calculates the temperature parameter based on processing times
+- execute(): main loop that initializes the solution and applies the chosen strategy
+The algorithm supports different strategies (individual, random, qlearning) that can be selected at initialization.
+"""
+
 import random
 import numpy as np
 from datetime import datetime, timedelta
@@ -9,7 +22,7 @@ import strategy
 
 class IteratedGreedyAlgorithm:
 
-    def __init__(self, instance_processing_times, strategy='individual'):
+    def __init__(self, instance_processing_times, strategy='individual', d=1):
         # Store processing times internally as a numpy array of shape (m, n)
         self.p_np = np.asarray(instance_processing_times, dtype=np.int64)
         
@@ -29,15 +42,16 @@ class IteratedGreedyAlgorithm:
         self.tie_breaking_construction = True
         self.tie_breaking_main_LS = True
         
-        self.until_no_improvement = True
+        self.until_no_improvement = False
+
         self.main_local_search = 'insertion_neighborhood'
-        self.local_search_destruction_partial_solution = 'insertion_neighborhood'
-        self.local_search_on_complete_initial_solution = 'insertion_neighborhood'
-        self.local_search_within_NEH = 'insertion_neighborhood'
+        self.local_search_destruction_partial_solution = None
+        self.local_search_on_complete_initial_solution = None
+        self.local_search_within_NEH = None
         
         self.ref_best = False  # insertion based on order in best solution
         
-        self.operator_list_perturbation = [1, 2, 3]  # Values of d (jobs to remove)
+        self.operator_list_perturbation = [d] if strategy == 'individual' else [1, 2, 3]  # Values of d (jobs to remove)
         self.exe_time = []
         self.best_fitness_list = []
         self.current_fitness_list = []
@@ -46,7 +60,7 @@ class IteratedGreedyAlgorithm:
         self.episode_size = 6
         self.epsilon_greedy = 0.8
         self.epsilon_greedy_decay = 0.996
-        self.learning_rate = 0.8
+        self.gamma_learning = 0.8
         self.alpha_learning = 0.6
 
     def execute(self, stopping_criterion, runtime_in_miliseconds, max_iteration):

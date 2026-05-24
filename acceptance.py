@@ -1,3 +1,11 @@
+"""
+acceptance.py
+---
+Contains the acceptance criterion for Iterated Greedy, combining greedy acceptance with a Metropolis criterion for worse solutions.
+The acceptance function mutates the current solution and best solution in place based on the new solution and the temperature parameter.
+The function accepts a new solution if it is better than the current solution, and also updates the best solution if improved.
+If the new solution is worse, it may still be accepted with a probability that decreases as the solution gets worse and as the temperature decreases.
+"""
 import math
 import random
 from solution import Solution
