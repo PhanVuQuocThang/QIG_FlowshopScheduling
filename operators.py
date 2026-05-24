@@ -12,7 +12,7 @@ from solution import _makespan_np, insert_best, Solution
 
 def perturbation(p_np, solution: Solution, num_jobs_remove: int,
                  local_search_partial=None, until_no_improvement=True,
-                 tie_breaking=False):
+                 tie_breaking=False, tie_breaking_construction=True):
     """
     Destruction-construction perturbation for Iterated Greedy.
     
@@ -34,7 +34,7 @@ def perturbation(p_np, solution: Solution, num_jobs_remove: int,
 
     # Construction
     for job in removed_jobs:
-        solution.perm, solution.cmax = insert_best(p_np, solution.perm, job, tie_breaking=tie_breaking)
+        solution.perm, solution.cmax = insert_best(p_np, solution.perm, job, tie_breaking=tie_breaking_construction)
 
 def local_search(p_np, solution: Solution, method='insertion_neighborhood',
                  ref_best: Solution = None, until_no_improvement=True,

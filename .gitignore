@@ -29,6 +29,7 @@ runs/
 
 # Results / outputs
 results/
+old_results/
 outputs/
 figures/
 plots/

@@ -42,7 +42,7 @@ class IteratedGreedyAlgorithm:
         self.tie_breaking_construction = True
         self.tie_breaking_main_LS = True
         
-        self.until_no_improvement = False
+        self.until_no_improvement = True
 
         self.main_local_search = 'insertion_neighborhood'
         self.local_search_destruction_partial_solution = None
