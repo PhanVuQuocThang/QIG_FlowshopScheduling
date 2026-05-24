@@ -29,6 +29,7 @@ runs/
 
 # Results / outputs
 results/
+old_results/
 outputs/
 figures/
 plots/
@@ -79,3 +80,6 @@ IG for PFSP/
 isolated/
 test*
 temp*
+
+# Ignore compiled Python extensions
+evaluations.cp311-win_amd64.pyd

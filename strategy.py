@@ -31,10 +31,11 @@ def ig_qlearning(algo_self):
         best_fit_during_episodes = [algo_self.best_solution.cmax]
         
         #### Selecting action ####
-        if np.random.rand() < algo_self.epsilon_greedy:
-            algo_self.action = np.random.randint(len(algo_self.operator_list_perturbation))
-        else:
+        # Bug 1 fix: paper Alg.3 line 15 — rand() >= ε → exploit, else → explore
+        if np.random.rand() >= algo_self.epsilon_greedy:
             algo_self.action = np.argmax(algo_self.Q_matrix[algo_self.state])
+        else:
+            algo_self.action = np.random.randint(len(algo_self.operator_list_perturbation))
             
         algo_self.actions_sequence.append(algo_self.action)
         algo_self.states_sequence.append(algo_self.state)
@@ -54,9 +55,10 @@ def ig_qlearning(algo_self):
                 algo_self.p_np,
                 algo_self.new_solution,
                 num_jobs_remove=d_jobs,
-                local_search_partial=algo_self.local_search_destruction_partial_solution,  # ← thêm dòng này
+                local_search_partial=algo_self.local_search_destruction_partial_solution,
                 until_no_improvement=algo_self.until_no_improvement,
-                tie_breaking=algo_self.tie_breaking_destruction_partial_solution
+                tie_breaking=algo_self.tie_breaking_destruction_partial_solution,
+                tie_breaking_construction=algo_self.tie_breaking_construction
             )
             
             # 2) Exploitation via Local Search 
@@ -90,50 +92,38 @@ def ig_qlearning(algo_self):
         if actual_eps == 0:
             algo_self.epsilon_greedy *= algo_self.epsilon_greedy_decay
             continue
-        mins_cur = [current_fit_during_episodes[0]]
-        improvement_num = 0
-        for imp in range(0, actual_eps):
-            if current_fit_during_episodes[imp+1] < mins_cur[-1]:
-                mins_cur.append(current_fit_during_episodes[imp+1])
-        
-        mins_best = [best_fit_during_episodes[0]]
-        for imp in range(0, actual_eps):
-            if best_fit_during_episodes[imp+1] < mins_best[-1]:
-                improvement_num += 1
-                mins_best.append(best_fit_during_episodes[imp+1])
-        
-        Diff_L = current_fit_during_episodes[0] - mins_cur[-1]
-        Diff_G = best_fit_during_episodes[0] - mins_best[-1]
-        
+
+        # --- Reward calculation (paper Eq. 10-12, η=0.3) ---
+        # Local improvement: best current-solution cmax achieved during episode
+        best_cur_in_ep = min(current_fit_during_episodes)
+        Diff_L = current_fit_during_episodes[0] - best_cur_in_ep
         DL = Diff_L / current_fit_during_episodes[0]
-        DG = Diff_G / best_fit_during_episodes[0] 
-        
-        # Calculate rewards based on relative changes
+
+        # Global improvement: did best-known solution improve this episode?
+        best_best_in_ep = min(best_fit_during_episodes)
+        Diff_G = best_fit_during_episodes[0] - best_best_in_ep
+        DG = Diff_G / best_fit_during_episodes[0]
+
         reward = 0.3 * max(DL, 0) + 0.7 * max(DG, 0)
-        
-        if improvement_num > 0:
-            next_state = 1
-            algo_self.Q_matrix[algo_self.state][algo_self.action] = (
-                algo_self.Q_matrix[algo_self.state][algo_self.action] + 
-                algo_self.alpha_learning * (
-                    reward + -algo_self.gamma_learning * np.max(algo_self.Q_matrix[next_state]) - 
-                    algo_self.Q_matrix[algo_self.state][algo_self.action]
-                )
+
+        # --- State transition (paper Alg.3): s'=1 iff global best improved this episode ---
+        # Bug 4 fix: binary check on C* as in paper, not counting improvement steps
+        next_state = 1 if best_fit_during_episodes[-1] < best_fit_during_episodes[0] else 0
+
+        # --- Q-update (paper Alg.3 line 11): always use OLD state s before transition ---
+        # Bug 2 fix: capture old_state first, update Q[old_state], then transition
+        old_state = algo_self.state
+        algo_self.Q_matrix[old_state][algo_self.action] = (
+            algo_self.Q_matrix[old_state][algo_self.action] +
+            algo_self.alpha_learning * (
+                reward
+                + algo_self.gamma_learning * np.max(algo_self.Q_matrix[next_state])
+                - algo_self.Q_matrix[old_state][algo_self.action]
             )
-            algo_self.state = next_state
-        else:
-            next_state = 0
-            algo_self.Q_matrix[algo_self.state][algo_self.action] = (   # dùng old state
-                algo_self.Q_matrix[algo_self.state][algo_self.action] +
-                algo_self.alpha_learning * (
-                    reward + algo_self.gamma_learning * np.max(algo_self.Q_matrix[next_state])
-                    - algo_self.Q_matrix[algo_self.state][algo_self.action]
-                )
-            )
-            algo_self.state = next_state  # update state SAU
-        
+        )
+        algo_self.state = next_state
+
         algo_self.epsilon_greedy *= algo_self.epsilon_greedy_decay
-        # -algo_self.gamma_learning *= algo_self.epsilon_greedy_decay
 
 
 def ig_individual(algo_self):
@@ -152,7 +142,8 @@ def ig_individual(algo_self):
             num_jobs_remove=algo_self.operator_list_perturbation[0],
             local_search_partial=algo_self.local_search_destruction_partial_solution,
             until_no_improvement=algo_self.until_no_improvement,
-            tie_breaking=algo_self.tie_breaking_destruction_partial_solution
+            tie_breaking=algo_self.tie_breaking_destruction_partial_solution,
+            tie_breaking_construction=algo_self.tie_breaking_construction
         )
         
         # 2) Exploitation via Local Search
@@ -196,7 +187,8 @@ def ig_random(algo_self):
             num_jobs_remove=algo_self.operator_list_perturbation[indx],
             local_search_partial=algo_self.local_search_destruction_partial_solution,
             until_no_improvement=algo_self.until_no_improvement,
-            tie_breaking=algo_self.tie_breaking_destruction_partial_solution
+            tie_breaking=algo_self.tie_breaking_destruction_partial_solution,
+            tie_breaking_construction=algo_self.tie_breaking_construction
         )
         
         # 2) Exploitation via Local Search
