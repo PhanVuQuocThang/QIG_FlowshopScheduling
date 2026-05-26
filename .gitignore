@@ -36,7 +36,6 @@ figures/
 plots/
 /latex
 reports/generated/
-*.csv.tmp
 
 # Checkpoints / models
 checkpoints/
@@ -48,10 +47,8 @@ models/checkpoints/
 *.joblib
 
 # Temporary files
-tmp/
 temp/
 .cache/
-*.tmp
 
 # datasets/bounds/*.csv
 
