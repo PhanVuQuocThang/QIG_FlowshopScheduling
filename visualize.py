@@ -27,12 +27,12 @@ matplotlib.rcParams.update({
 })
 
 ALGO_COLORS = {
-    "QIG":  "#E63946",   # đỏ - thuật toán đề xuất
-    "RIG":  "#457B9D",   # xanh dương
-    "IIG1": "#2A9D8F",   # xanh lá
-    "IIG2": "#E9C46A",   # vàng
-    "IIG3": "#F4A261",   # cam
-    "IIG4": "#A8DADC",   # xanh nhạt
+    "QIG":  "#E63946",
+    "RIG":  "#457B9D",
+    "IIG1": "#2A9D8F",
+    "IIG2": "#E9C46A",
+    "IIG3": "#F4A261",
+    "IIG4": "#A8DADC",
 }
 
 def _algo_color(algo: str) -> str:
@@ -67,7 +67,7 @@ def boxplot_rpd(
     if n_sets == 1:
         axes = [axes]
 
-    for ax, inst in zip(axes, instance_sets):
+    for idx, (ax, inst) in enumerate(zip(axes, instance_sets)):
         data_by_algo = []
         labels = []
         colors = []
@@ -97,7 +97,7 @@ def boxplot_rpd(
         ax.set_xticks(range(1, len(labels) + 1))
         ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=9)
         ax.set_title(inst, fontsize=10)
-        ax.set_ylabel("RPD (%)" if axes.index(ax) == 0 else "")  # type: ignore
+        ax.set_ylabel("RPD (%)" if idx == 0 else "")  # type: ignore
         ax.axhline(0, color="gray", lw=0.7, ls="--")
 
     fig.suptitle(title or "RPD Distribution by Instance", fontweight="bold", y=1.01)

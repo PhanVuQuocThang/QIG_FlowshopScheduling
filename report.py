@@ -67,21 +67,51 @@ TAILLARD_GROUPS = {
 
 
 def pick_representative_instances(df: pd.DataFrame, source_prefix: str, n_pick: int = 6) -> List[str]:
-    """Chọn n_pick instances đại diện cho việc vẽ boxplot."""
     all_insts = sorted(df[df["instance"].str.lower().str.startswith(source_prefix)]["instance"].unique())
     if len(all_insts) <= n_pick:
         return all_insts
-    # Phân bổ đều
+    
     indices = np.linspace(0, len(all_insts) - 1, n_pick, dtype=int)
     return [all_insts[i] for i in indices]
 
 
 def group_by_nm(df: pd.DataFrame) -> pd.DataFrame:
-    """Thêm cột nm_group = 'n×m' để nhóm instances."""
+
     df = df.copy()
     df["nm_group"] = df["n"].astype(str) + "×" + df["m"].astype(str)
     return df
 
+def make_nm_table(df: pd.DataFrame, algorithms: list) -> pd.DataFrame:
+    """
+    create table with rows = (n, m) groups and columns = algorithms, values = ARPD (AvS) and ARPD (BS)
+    """
+    from metrics import compute_arpd_table
+    
+    arpd_df = compute_arpd_table(df)
+    
+    rows = []
+    for (n, m), group in arpd_df.groupby(["n", "m"]):
+        row = {"n": int(n), "m": int(m)}
+        for algo in algorithms:
+            sub = group[group["algorithm"] == algo]
+            if len(sub):
+                row[f"{algo}_AvS"] = round(sub["AvS"].mean(), 3)
+                row[f"{algo}_BS"]  = round(sub["BS"].mean(), 3)
+            else:
+                row[f"{algo}_AvS"] = None
+                row[f"{algo}_BS"]  = None
+        rows.append(row)
+    
+    result = pd.DataFrame(rows).sort_values(["n", "m"])
+    
+    # add Average row
+    avg_row = {"n": "Avg", "m": ""}
+    for algo in algorithms:
+        avg_row[f"{algo}_AvS"] = round(result[f"{algo}_AvS"].mean(), 3)
+        avg_row[f"{algo}_BS"]  = round(result[f"{algo}_BS"].mean(), 3)
+    result = pd.concat([result, pd.DataFrame([avg_row])], ignore_index=True)
+    
+    return result
 
 # Main report
 
@@ -125,6 +155,12 @@ def generate_report(
                 v = verdicts.loc["QIG", algo]
                 print(f"    {algo:<8}: p={p:.4f}  {v}")
 
+    # NM Table
+    algos = ["RIG", "QIG", "IIG1", "IIG2", "IIG3"]
+    nm_table = make_nm_table(df, algos)
+    nm_table.to_csv(out_dir / "nm_comparison_table.csv", index=False)
+    print(nm_table.to_string(index=False))
+
     # Figure 1: ARPD Bar
     fig = arpd_bar(arpd_df, metric="AvS", title="Overall ARPD (AvS) by Algorithm")
     fig.savefig(out_dir / "arpd_bar_avs.png", dpi=150, bbox_inches="tight")
@@ -149,43 +185,38 @@ def generate_report(
         plt.close(fig)
         print(f"Saved: {out_dir/'boxplot_taillard.png'}")
 
-    # Figure 3: Boxplot RPD (VRF-small)
-    vrf_small_insts = df[df["instance"].str.upper().str.startswith("VFR1")]["instance"].unique()
-    if len(vrf_small_insts) > 0:
-        picks = pick_representative_instances(df, "vfr1", n_pick=4)
-        if not picks:
-            picks = pick_representative_instances(df, "vrf1", n_pick=4)
-        if picks:
-            fig = boxplot_rpd(
-                df, instance_sets=picks, algorithms=algorithms,
-                figsize=(max(10, len(picks) * 2 + 2), 5),
-                title="RPD Distribution - VRF-hard-small",
-            )
-            fig.savefig(out_dir / "boxplot_vrf_small.png", dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            print(f"Saved: {out_dir/'boxplot_vrf_small.png'}")
-
-    # Figure 4: Boxplot RPD (VRF-large)
-    for prefix in ["vfr5", "vfr8", "vrf5", "vrf8"]:
-        large_picks = pick_representative_instances(df, prefix, n_pick=4)
-        if large_picks:
-            break
-    if large_picks:
+    # Figure 3: Boxplot RPD (VRF-small) — pick VFR60 thay vì VFR10
+    picks_small = pick_representative_instances(df, "vfr60", n_pick=4)
+    if picks_small:
         fig = boxplot_rpd(
-            df, instance_sets=large_picks, algorithms=algorithms,
-            figsize=(max(10, len(large_picks) * 2 + 2), 5),
+            df, instance_sets=picks_small, algorithms=algorithms,
+            figsize=(max(10, len(picks_small) * 2 + 2), 5),
+            title="RPD Distribution - VRF-hard-small",
+        )
+        fig.savefig(out_dir / "boxplot_vrf_small.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"Saved: {out_dir/'boxplot_vrf_small.png'}")
+
+    # Figure 4: Boxplot RPD (VRF-large) — pick VFR100 và VFR200
+    picks_large = []
+    for prefix in ["vfr100", "vfr200"]:
+        picks_large += pick_representative_instances(df, prefix, n_pick=2)
+    if picks_large:
+        fig = boxplot_rpd(
+            df, instance_sets=picks_large[:4], algorithms=algorithms,
+            figsize=(max(10, len(picks_large[:4]) * 2 + 2), 5),
             title="RPD Distribution - VRF-hard-large",
         )
         fig.savefig(out_dir / "boxplot_vrf_large.png", dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved: {out_dir/'boxplot_vrf_large.png'}")
 
-    # Figure 5: Convergence Grid
-    if run_convergence and dataset_root:
-        print("\nCollecting convergence data (this may take a while)...")
-        _convergence_report(df, algorithms, dataset_root, out_dir)
+        # Figure 5: Convergence Grid
+        if run_convergence and dataset_root:
+            print("\nCollecting convergence data (this may take a while)...")
+            _convergence_report(df, algorithms, dataset_root, out_dir)
 
-    print(f"\n✓ Report complete → {out_dir}")
+        print(f"\n✓ Report complete → {out_dir}")
 
 
 def _convergence_report(
@@ -195,11 +226,9 @@ def _convergence_report(
     out_dir: Path,
     n_runs: int = 5,
 ) -> None:
-    """Chạy lại một số instances để thu convergence data rồi vẽ grid."""
     from benchmark import load_project_datasets, time_limit_ms as tlms
 
     data = load_project_datasets(dataset_root)
-    # Chọn 4 instances đại diện từ Taillard
     tai = data["taillard"]
     target_names = []
     for inst in tai:

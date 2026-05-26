@@ -214,7 +214,7 @@ def run_benchmark_resume(
 def parse_args():
     p = argparse.ArgumentParser(description="Resume-capable QIG/RIG/IIG benchmark runner")
     p.add_argument("--root", default="datasets", help="Dataset root folder")
-    p.add_argument("--dataset", default="all", choices=["all", "taillard", "vrf_small", "vrf_large"])
+    p.add_argument("--dataset", default="all", choices=["all", "taillard", "vrf_small", "vrf_large", "taillard_ins_subset_1"])
     p.add_argument("--runs", type=int, default=30, help="Independent runs per instance")
     p.add_argument("--t", type=int, default=60)
     p.add_argument("--out", default="results", help="Output directory")

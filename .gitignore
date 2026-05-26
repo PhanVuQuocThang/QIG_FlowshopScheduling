@@ -29,10 +29,12 @@ runs/
 
 # Results / outputs
 results/
-old_results/
+old_results_v1/
+old_results_v2/
 outputs/
 figures/
 plots/
+/latex
 reports/generated/
 *.csv.tmp
 

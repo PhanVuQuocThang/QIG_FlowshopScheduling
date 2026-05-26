@@ -726,15 +726,21 @@ def load_project_datasets(root: str | Path = "datasets") -> Dict[str, BenchmarkS
         bounds / "VFRlarge_UB_Schedules_v9.csv",
         source="vrf_large",
     )
+    
+    taillard_ins_subset_1 = load_taillard_instances(
+        root / "taillard_ins_subset_1",
+        bounds / "Taillard_UB_Schedules_v9.csv",
+    )
 
     all_suite = BenchmarkSuite(
-        taillard.instances + vrf_small.instances + vrf_large.instances
+        taillard.instances + vrf_small.instances + vrf_large.instances + taillard_ins_subset_1.instances
     )
 
     return {
         "taillard": taillard,
         "vrf_small": vrf_small,
         "vrf_large": vrf_large,
+        "taillard_ins_subset_1": taillard_ins_subset_1,
         "all": all_suite,
     }
 
@@ -819,7 +825,7 @@ def benchmark_algorithm(
 def _cli() -> None:
     parser = argparse.ArgumentParser(description="PFSP benchmark dataset loader")
     parser.add_argument("--root", default="datasets", help="Dataset root folder")
-    parser.add_argument("--which", default="all", choices=["all", "taillard", "vrf_small", "vrf_large"])
+    parser.add_argument("--which", default="all", choices=["all", "taillard", "vrf_small", "vrf_large", "taillard_ins_subset_1"])
     parser.add_argument("--check-bounds", action="store_true", help="Check Cmax(csv permutation) == UB")
     parser.add_argument("--show-first", action="store_true")
     args = parser.parse_args()
